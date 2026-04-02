@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Personal OS – Your AI-powered workspace for notes, YouTube summaries, and research. Sign in with Google to get started.">
+  <title>Sign In – Personal OS</title>
+
+  <!-- Env config FIRST -->
+  <script src="env-config.js"></script>
+
+  <!-- Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- Favicon placeholder -->
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+
+<body>
+
+  <!-- ─── Animated Background ─────────────────────────────────────────────── -->
+  <div class="login-page" id="login-page">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <!-- ─── Login Card ─────────────────────────────────────────────────────── -->
+    <div class="login-card" role="main">
+
+      <!-- Logo -->
+      <div class="login-logo">
+        <div class="login-logo-icon" aria-hidden="true">🧠</div>
+        <div>
+          <h1 style="font-size:1.8rem;font-weight:800"><span class="text-gradient">Personal OS</span></h1>
+        </div>
+      </div>
+
+      <p class="login-tagline">Your AI-powered personal workspace.<br>Notes · Summaries · Research — all in one place.
+      </p>
+
+      <!-- Google Sign In Button -->
+      <button class="google-btn" id="google-login-btn" aria-label="Sign in with Google">
+        <!-- Google Logo SVG -->
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M21.805 11.23c0-.82-.073-1.605-.21-2.36H11.2v4.465h5.95a5.086 5.086 0 0 1-2.207 3.34v2.777h3.573c2.09-1.927 3.29-4.764 3.29-8.222z"
+            fill="#4285F4" />
+          <path
+            d="M11.2 22c2.985 0 5.49-.99 7.32-2.688l-3.573-2.777c-.99.666-2.257 1.06-3.747 1.06-2.882 0-5.32-1.946-6.193-4.56H1.315v2.868A11.196 11.196 0 0 0 11.2 22z"
+            fill="#34A853" />
+          <path d="M5.007 13.035a6.728 6.728 0 0 1 0-4.07V6.097H1.315a11.196 11.196 0 0 0 0 9.806l3.692-2.868z"
+            fill="#FBBC05" />
+          <path
+            d="M11.2 4.41c1.624 0 3.083.558 4.23 1.655l3.174-3.174C16.685 1.09 14.18 0 11.2 0A11.196 11.196 0 0 0 1.315 6.097L5.007 8.965C5.88 6.356 8.318 4.41 11.2 4.41z"
+            fill="#EA4335" />
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="divider" style="margin:20px 0"><span>or continue with email</span></div>
+
+      <form id="email-login-form" style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+        <input type="email" id="email-input" class="form-input" placeholder="name@example.com" required autocomplete="email">
+        <input type="password" id="password-input" class="form-input" placeholder="Password (min 6 chars)" required minlength="6" autocomplete="current-password">
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <button type="submit" class="btn btn-secondary" style="flex:1" id="email-signin-btn" data-action="signin">Sign In</button>
+          <button type="submit" class="btn btn-outline" style="flex:1;background:transparent;border:1px solid var(--border-color);color:var(--text-color);" id="email-signup-btn" data-action="signup">Sign Up</button>
+        </div>
+      </form>
+
+      <div class="divider"><span>Why Personal OS?</span></div>
+
+      <!-- Feature highlights -->
+      <div class="feature-list" role="list">
+        <div class="feature-item" role="listitem">
+          <span class="fi-icon" aria-hidden="true">📝</span>
+          <span>Rich-text notes with AI-powered search</span>
+        </div>
+        <div class="feature-item" role="listitem">
+          <span class="fi-icon" aria-hidden="true">🎥</span>
+          <span>Summarize any YouTube video in seconds</span>
+        </div>
+        <div class="feature-item" role="listitem">
+          <span class="fi-icon" aria-hidden="true">🔍</span>
+          <span>AI Research Tool with cited sources</span>
+        </div>
+        <div class="feature-item" role="listitem">
+          <span class="fi-icon" aria-hidden="true">🔒</span>
+          <span>Your data — private and secure</span>
+        </div>
+      </div>
+
+      <p class="login-footer">
+        By signing in, you agree to our&nbsp;
+        <a href="#" aria-label="Terms of Service">Terms of Service</a>&nbsp;&amp;&nbsp;
+        <a href="#" aria-label="Privacy Policy">Privacy Policy</a>.
+      </p>
+    </div>
+
+    <!-- Theme toggle on login -->
+    <div style="position:fixed;top:20px;right:20px;z-index:10">
+      <button class="theme-toggle" id="login-theme-toggle" aria-label="Toggle dark/light mode"
+        title="Toggle theme"></button>
+    </div>
+  </div>
+
+  <!-- ─── Scripts ──────────────────────────────────────────────────────────── -->
+  <script type="module">
+    import { signInWithGoogle, signInWithEmailPassword, signUpWithEmailPassword, redirectIfLoggedIn } from './js/auth.js';
+    import { showToast } from './utils/helpers.js';
+
+    // Restore saved theme
+    const saved = localStorage.getItem('pos_theme') || 'dark';
+    document.documentElement.dataset.theme = saved;
+
+    // Redirect if already logged in
+    redirectIfLoggedIn();
+
+    // Google login button
+    document.getElementById('google-login-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('google-login-btn');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="btn-spinner" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span> Redirecting…`;
+      await signInWithGoogle();
+      btn.disabled = false;
+    });
+
+    // Theme toggle
+    document.getElementById('login-theme-toggle').addEventListener('click', () => {
+      const current = document.documentElement.dataset.theme || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem('pos_theme', next);
+    });
+
+    // Email/Password login form
+    let currentAuthAction = 'signin';
+
+    document.getElementById('email-signin-btn').addEventListener('click', () => currentAuthAction = 'signin');
+    document.getElementById('email-signup-btn').addEventListener('click', () => currentAuthAction = 'signup');
+
+    document.getElementById('email-login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const inputMail = document.getElementById('email-input');
+      const inputPass = document.getElementById('password-input');
+      const signInBtn = document.getElementById('email-signin-btn');
+      const signUpBtn = document.getElementById('email-signup-btn');
+      
+      const email = inputMail.value.trim();
+      const password = inputPass.value;
+      if (!email || !password) return;
+
+      const activeBtn = currentAuthAction === 'signin' ? signInBtn : signUpBtn;
+      const originalText = activeBtn.textContent;
+
+      activeBtn.disabled = true;
+      activeBtn.innerHTML = `<span class="btn-spinner" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span> Wait…`;
+      signInBtn.disabled = true;
+      signUpBtn.disabled = true;
+      
+      let success = false;
+      if (currentAuthAction === 'signin') {
+        success = await signInWithEmailPassword(email, password);
+      } else {
+        success = await signUpWithEmailPassword(email, password);
+      }
+
+      if (success && currentAuthAction === 'signin') {
+        activeBtn.innerHTML = '✓ Authenticated';
+        window.location.replace('dashboard.html');
+      } else {
+        activeBtn.disabled = false;
+        activeBtn.textContent = originalText;
+        signInBtn.disabled = false;
+        signUpBtn.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+
+</html>

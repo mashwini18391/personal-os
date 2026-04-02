@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Admin Dashboard – Personal OS. Manage users, view statistics, and maintain the platform.">
+  <title>Admin – Personal OS</title>
+
+  <!-- Env config FIRST -->
+  <script src="env-config.js"></script>
+
+  <!-- Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body>
+
+<!-- ─── Page Loader ───────────────────────────────────────────────────────── -->
+<div class="page-loader" id="page-loader" role="status" aria-label="Loading admin panel">
+  <div class="loader-ring"></div>
+  <p class="loader-text">Loading Admin Panel…</p>
+</div>
+
+<!-- ─── Mobile Sidebar Overlay ───────────────────────────────────────────── -->
+<div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+<!-- ─── App Shell ──────────────────────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- ══ Sidebar ══════════════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Admin navigation">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="brand-icon" aria-hidden="true">⚙️</div>
+      <div class="brand-text"><span>Admin Panel</span></div>
+    </div>
+
+    <!-- User info -->
+    <div class="sidebar-user">
+      <div class="user-avatar" data-user-avatar aria-hidden="true">A</div>
+      <div class="user-info">
+        <div class="user-name" data-user-name>Admin</div>
+        <div class="user-role badge badge-admin" data-user-role>Admin</div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Admin</div>
+
+      <div class="nav-item active" id="nav-admin-overview" role="button" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">📊</span>
+        <span>Overview</span>
+      </div>
+
+      <div class="nav-item" id="nav-admin-users" role="button" tabindex="0">
+        <span class="nav-icon" aria-hidden="true">👥</span>
+        <span>Users</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:8px">Navigation</div>
+
+      <div class="nav-item" role="button" tabindex="0"
+           onclick="window.location.href='dashboard.html'" aria-label="Go to user dashboard">
+        <span class="nav-icon" aria-hidden="true">🏠</span>
+        <span>User Dashboard</span>
+      </div>
+    </nav>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm w-full" id="signout-btn"
+              style="justify-content:flex-start;gap:10px" aria-label="Sign out">
+        <span aria-hidden="true">🚪</span> Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══ Topbar ════════════════════════════════════════════════════════════ -->
+  <header class="topbar" role="banner">
+    <div class="topbar-left">
+      <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        ☰
+      </button>
+      <div>
+        <div class="page-title">Admin Dashboard</div>
+        <div class="page-subtitle">Platform management &amp; user oversight</div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark/light mode" title="Toggle theme"></button>
+    </div>
+  </header>
+
+  <!-- ══ Main Content ══════════════════════════════════════════════════════ -->
+  <main class="main-content" id="main-content" role="main">
+
+    <!-- ── Admin Banner ───────────────────────────────────────────────────── -->
+    <div style="
+      background: linear-gradient(135deg, rgba(124,58,237,.15) 0%, rgba(6,182,212,.1) 100%);
+      border: 1px solid var(--border-hl);
+      border-radius: var(--r-lg);
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      display: flex; align-items: center; gap: 14px;
+    " role="alert">
+      <span style="font-size:1.8rem" aria-hidden="true">🛡️</span>
+      <div>
+        <strong style="color:var(--accent-2)">Admin Mode Active</strong>
+        <p style="font-size:.85rem;margin-top:2px">You have full platform access. Actions here affect all users.</p>
+      </div>
+    </div>
+
+    <!-- ── Site Stats ─────────────────────────────────────────────────────── -->
+    <div class="stats-grid" role="list" aria-label="Platform statistics">
+      <div class="stat-card" role="listitem">
+        <div class="stat-icon" aria-hidden="true">👥</div>
+        <div class="stat-value" id="admin-stat-users">—</div>
+        <div class="stat-label">Total Users</div>
+      </div>
+      <div class="stat-card" role="listitem">
+        <div class="stat-icon" aria-hidden="true">📝</div>
+        <div class="stat-value" id="admin-stat-notes">—</div>
+        <div class="stat-label">Total Notes</div>
+      </div>
+      <div class="stat-card" role="listitem">
+        <div class="stat-icon" aria-hidden="true">🎥</div>
+        <div class="stat-value" id="admin-stat-yt">—</div>
+        <div class="stat-label">Summaries</div>
+      </div>
+      <div class="stat-card" role="listitem">
+        <div class="stat-icon" aria-hidden="true">🔍</div>
+        <div class="stat-value" id="admin-stat-research">—</div>
+        <div class="stat-label">Research Queries</div>
+      </div>
+    </div>
+
+    <!-- ── Users Table ────────────────────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">👥 All Users</h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="search-bar" style="width:220px" role="search">
+            <span aria-hidden="true">🔍</span>
+            <input type="search" id="admin-user-search" placeholder="Search users…"
+                   aria-label="Search users" autocomplete="off">
+          </div>
+          <button class="btn btn-secondary btn-sm" id="refresh-users-btn" aria-label="Refresh users list">
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Table container -->
+      <div id="users-table-wrap" aria-live="polite">
+        <div style="padding:40px;text-align:center">
+          <div class="loader-ring" style="margin:auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Recent Platform Activity ───────────────────────────────────────── -->
+    <div class="card mt-8">
+      <div class="card-header">
+        <h2 class="card-title">📋 Recent Platform Activity</h2>
+      </div>
+      <div class="activity-list" id="admin-activity-feed" aria-live="polite">
+        <div style="padding:20px;text-align:center">
+          <div class="loader-ring" style="margin:auto"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ─── Scripts ───────────────────────────────────────────────────────────── -->
+<script type="module" src="js/admin.js"></script>
+
+<!-- Sidebar tabs + search filter -->
+<script>
+  // Simple admin sidebar tab behaviour
+  const navOverview = document.getElementById('nav-admin-overview');
+  const navUsers    = document.getElementById('nav-admin-users');
+
+  navOverview?.addEventListener('click', () => {
+    navOverview.classList.add('active');
+    navUsers?.classList.remove('active');
+  });
+
+  navUsers?.addEventListener('click', () => {
+    navUsers.classList.add('active');
+    navOverview?.classList.remove('active');
+    document.getElementById('users-table-wrap')?.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Mobile sidebar
+  const menuBtn  = document.getElementById('menu-toggle');
+  const sidebar  = document.getElementById('sidebar');
+  const overlay  = document.getElementById('sidebar-overlay');
+
+  menuBtn?.addEventListener('click',  () => { sidebar?.classList.toggle('open'); overlay?.classList.toggle('open'); });
+  overlay?.addEventListener('click',  () => { sidebar?.classList.remove('open'); overlay?.classList.remove('open'); });
+
+  // Refresh button
+  document.getElementById('refresh-users-btn')?.addEventListener('click', () => {
+    import('./js/admin.js').catch(() => location.reload());
+  });
+
+  // Live search filter on table rows
+  document.getElementById('admin-user-search')?.addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#users-table tbody tr').forEach(row => {
+      row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+
+  // Load recent platform activity
+  async function loadAdminActivity() {
+    const { createClient } = supabase;
+    const client = createClient(window.ENV?.SUPABASE_URL, window.ENV?.SUPABASE_ANON_KEY);
+    const { data } = await client
+      .from('activity')
+      .select('*, profiles(name, email)')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    const feed = document.getElementById('admin-activity-feed');
+    if (!feed) return;
+
+    if (!data?.length) {
+      feed.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No activity recorded.</p></div>';
+      return;
+    }
+
+    const typeMap = {
+      note     : { icon: '📝', label: 'Created a note' },
+      summarize: { icon: '🎥', label: 'Summarized a video' },
+      research : { icon: '🔍', label: 'Researched a topic' },
+    };
+
+    feed.innerHTML = data.map(item => {
+      const t    = typeMap[item.type] || { icon: '📌', label: 'Action' };
+      const user = item.profiles?.name || item.profiles?.email || 'Unknown';
+      return `
+        <div class="activity-item">
+          <div class="activity-dot ${item.type}">${t.icon}</div>
+          <div class="activity-body">
+            <div class="activity-text"><strong>${user}</strong> – ${t.label}</div>
+            <div class="activity-time">${new Date(item.created_at).toLocaleString()}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Run after a short delay to allow admin.js to init first
+  setTimeout(loadAdminActivity, 2000);
+</script>
+
+</body>
+</html>

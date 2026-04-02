@@ -1,0 +1,13 @@
+{
+  "name": "personal-os",
+  "version": "1.0.0",
+  "description": "A **production-ready, full-stack web app** built with pure HTML + CSS + Vanilla JavaScript. Features notes, YouTube AI summarizer, AI research, and an admin dashboard — all powered by **Supabase** (auth + DB) and **Google Gemini** (AI).",
+  "main": "env-config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

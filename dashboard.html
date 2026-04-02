@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Personal OS Dashboard – Manage notes, YouTube summaries, and AI research.">
+  <title>Dashboard – Personal OS</title>
+
+  <!-- Env config FIRST -->
+  <script src="env-config.js"></script>
+
+  <!-- Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Quill Rich Text Editor -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js" defer></script>
+
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body>
+
+<!-- ─── Page Loader ───────────────────────────────────────────────────────── -->
+<div class="page-loader" id="page-loader" role="status" aria-label="Loading dashboard">
+  <div class="loader-ring"></div>
+  <p class="loader-text">Loading Personal OS…</p>
+</div>
+
+<!-- ─── Mobile Sidebar Overlay ───────────────────────────────────────────── -->
+<div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
+<!-- ─── App Shell ──────────────────────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- ══ Sidebar ══════════════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+
+    <!-- Brand -->
+    <div class="sidebar-brand">
+      <div class="brand-icon" aria-hidden="true">🧠</div>
+      <div class="brand-text"><span>Personal OS</span></div>
+    </div>
+
+    <!-- User info -->
+    <div class="sidebar-user">
+      <div class="user-avatar" data-user-avatar aria-hidden="true">U</div>
+      <div class="user-info">
+        <div class="user-name" data-user-name>Loading…</div>
+        <div class="user-role badge badge-user" data-user-role>User</div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Workspace</div>
+
+      <div class="nav-item active" data-section="overview" id="nav-overview" role="button" tabindex="0" aria-label="Overview">
+        <span class="nav-icon" aria-hidden="true">🏠</span>
+        <span>Overview</span>
+      </div>
+
+      <div class="nav-item" data-section="notes" id="nav-notes" role="button" tabindex="0" aria-label="Notes">
+        <span class="nav-icon" aria-hidden="true">📝</span>
+        <span>Notes</span>
+        <span id="notes-count" class="badge badge-purple" style="margin-left:auto;font-size:.7rem"></span>
+      </div>
+
+      <div class="nav-item" data-section="youtube" id="nav-youtube" role="button" tabindex="0" aria-label="YouTube Summarizer">
+        <span class="nav-icon" aria-hidden="true">🎥</span>
+        <span>YouTube Summarizer</span>
+      </div>
+
+      <div class="nav-item" data-section="research" id="nav-research" role="button" tabindex="0" aria-label="AI Research">
+        <span class="nav-icon" aria-hidden="true">🔍</span>
+        <span>AI Research</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:8px">History</div>
+
+      <div class="nav-item" data-section="activity" id="nav-activity" role="button" tabindex="0" aria-label="Activity">
+        <span class="nav-icon" aria-hidden="true">📊</span>
+        <span>Activity</span>
+      </div>
+
+      <!-- Admin link (hidden unless admin) -->
+      <div class="nav-section-label hidden" id="admin-nav-item" style="margin-top:8px">Admin</div>
+      <div class="nav-item hidden" data-section="admin" id="nav-admin" role="button" tabindex="0" aria-label="Admin Panel">
+        <span class="nav-icon" aria-hidden="true">⚙️</span>
+        <span>Admin Panel</span>
+      </div>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm w-full" id="signout-btn" style="justify-content:flex-start;gap:10px">
+        <span aria-hidden="true">🚪</span> Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══ Topbar ════════════════════════════════════════════════════════════ -->
+  <header class="topbar" role="banner">
+    <div class="topbar-left">
+      <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        ☰
+      </button>
+      <div>
+        <div class="page-title" id="topbar-title">Overview</div>
+        <div class="page-subtitle" id="topbar-sub">Your personal workspace</div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark/light mode" title="Toggle theme"></button>
+    </div>
+  </header>
+
+  <!-- ══ Main Content ══════════════════════════════════════════════════════ -->
+  <main class="main-content" id="main-content" role="main">
+
+    <!-- ── Overview Section ──────────────────────────────────────────────── -->
+    <section class="section active" id="section-overview" aria-label="Overview">
+
+      <!-- Quick Actions -->
+      <div class="quick-actions" role="group" aria-label="Quick actions">
+        <button class="quick-action-btn" id="qa-create-note" aria-label="Create a new note">
+          <span class="qa-icon" aria-hidden="true">📝</span>
+          New Note
+        </button>
+        <button class="quick-action-btn" id="qa-summarize" aria-label="Summarize a YouTube video">
+          <span class="qa-icon" aria-hidden="true">🎥</span>
+          Summarize Video
+        </button>
+        <button class="quick-action-btn" id="qa-research" aria-label="Ask a research question">
+          <span class="qa-icon" aria-hidden="true">🔍</span>
+          Ask AI Research
+        </button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid" role="list" aria-label="Statistics">
+        <div class="stat-card" role="listitem">
+          <div class="stat-icon" aria-hidden="true">📝</div>
+          <div class="stat-value" id="stat-notes">0</div>
+          <div class="stat-label">Total Notes</div>
+        </div>
+        <div class="stat-card" role="listitem">
+          <div class="stat-icon" aria-hidden="true">🎥</div>
+          <div class="stat-value" id="stat-summaries">0</div>
+          <div class="stat-label">Summaries</div>
+        </div>
+        <div class="stat-card" role="listitem">
+          <div class="stat-icon" aria-hidden="true">🔍</div>
+          <div class="stat-value" id="stat-research">0</div>
+          <div class="stat-label">Research Queries</div>
+        </div>
+        <div class="stat-card" role="listitem">
+          <div class="stat-icon" aria-hidden="true">⚡</div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Total Actions</div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Recent Activity</h2>
+          <button class="btn btn-ghost btn-sm" onclick="document.querySelector('[data-section=activity]').click()">
+            View all →
+          </button>
+        </div>
+        <div class="activity-list" id="recent-activity-feed" aria-live="polite">
+          <!-- Populated by dashboard.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Notes Section ──────────────────────────────────────────────────── -->
+    <section class="section" id="section-notes" aria-label="Notes">
+      <div class="section-header">
+        <h2 class="section-title">My Notes</h2>
+        <button class="btn btn-primary" id="create-note-btn" aria-label="Create new note">
+          + New Note
+        </button>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="card mb-4" style="padding:16px">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <!-- Search -->
+          <div class="search-bar" style="flex:1;min-width:200px" role="search">
+            <span aria-hidden="true">🔍</span>
+            <input type="search" id="notes-search" placeholder="Search notes…" aria-label="Search notes" autocomplete="off">
+            <button class="btn btn-sm btn-ghost btn-icon" id="ai-search-btn" title="Toggle AI semantic search" data-ai-mode="off"
+                    aria-label="Toggle AI search" style="margin-left:4px">✨</button>
+          </div>
+
+          <!-- Sort -->
+          <label for="notes-sort" class="sr-only">Sort notes by</label>
+          <select class="form-select" id="notes-sort" style="width:auto" aria-label="Sort notes">
+            <option value="created_at">📅 Latest First</option>
+            <option value="title">🔤 Title A–Z</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Grid -->
+      <div class="notes-grid" id="notes-grid" aria-live="polite" role="list">
+        <!-- Populated by notes.js -->
+      </div>
+    </section>
+
+    <!-- ── YouTube Summarizer Section ────────────────────────────────────── -->
+    <section class="section" id="section-youtube" aria-label="YouTube Summarizer">
+      <div class="section-header">
+        <h2 class="section-title">YouTube Summarizer</h2>
+      </div>
+
+      <!-- Input Form -->
+      <div class="card mb-4">
+        <form id="youtube-form" novalidate>
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label" for="youtube-url">YouTube Video URL</label>
+            <div class="input-wrapper">
+              <span class="input-icon" aria-hidden="true">🎬</span>
+              <input class="form-input" id="youtube-url" type="url"
+                     placeholder="https://www.youtube.com/watch?v=..."
+                     aria-label="YouTube video URL" autocomplete="off" required>
+            </div>
+          </div>
+          <button class="btn btn-primary" type="submit" id="yt-submit-btn">
+            ✨ Generate Summary
+          </button>
+        </form>
+      </div>
+
+      <!-- Result -->
+      <div id="yt-result">
+        <div class="empty-state">
+          <div class="empty-icon">🎥</div>
+          <h3>No summary yet</h3>
+          <p>Paste a YouTube URL above and click Generate Summary.</p>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="card mt-8">
+        <div class="card-header">
+          <h3 class="card-title">Recent Summaries</h3>
+        </div>
+        <div class="activity-list" id="yt-history-list" aria-live="polite">
+          <!-- Populated by youtube.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ── AI Research Section ────────────────────────────────────────────── -->
+    <section class="section" id="section-research" aria-label="AI Research Tool">
+      <div class="section-header">
+        <h2 class="section-title">AI Research Tool</h2>
+      </div>
+
+      <!-- Input Form -->
+      <div class="card mb-4">
+        <form id="research-form" novalidate>
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label" for="research-input">Your Question</label>
+            <textarea class="form-textarea" id="research-input" rows="3"
+                      placeholder="What would you like to research? Press Ctrl+Enter to submit."
+                      aria-label="Research question" required></textarea>
+          </div>
+
+          <!-- Suggested questions -->
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+            <button type="button" class="badge badge-purple" style="cursor:pointer;padding:6px 12px"
+                    data-suggest="What are the latest AI breakthroughs in 2025?">
+              💡 AI breakthroughs 2025
+            </button>
+            <button type="button" class="badge badge-cyan" style="cursor:pointer;padding:6px 12px"
+                    data-suggest="How does quantum computing work?">
+              💡 Quantum computing
+            </button>
+            <button type="button" class="badge badge-green" style="cursor:pointer;padding:6px 12px"
+                    data-suggest="What is the future of renewable energy?">
+              💡 Renewable energy future
+            </button>
+          </div>
+
+          <button class="btn btn-primary" type="submit" id="research-submit-btn">
+            🔍 Research This
+          </button>
+        </form>
+      </div>
+
+      <!-- Result -->
+      <div id="research-result">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <h3>Ask me anything</h3>
+          <p>Type your question above and get an AI-generated, sourced answer.</p>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="card mt-8">
+        <div class="card-header">
+          <h3 class="card-title">Recent Queries</h3>
+          <small style="color:var(--text-muted)">Click to re-run</small>
+        </div>
+        <div class="activity-list" id="research-history" aria-live="polite">
+          <!-- Populated by research.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Activity Section ───────────────────────────────────────────────── -->
+    <section class="section" id="section-activity" aria-label="Activity History">
+      <div class="section-header">
+        <h2 class="section-title">Activity History</h2>
+      </div>
+      <div class="card">
+        <div class="activity-list" id="full-activity-feed" aria-live="polite">
+          <!-- Populated by dashboard.js -->
+        </div>
+      </div>
+    </section>
+
+  </main><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- ─── Scripts ───────────────────────────────────────────────────────────── -->
+<script type="module" src="js/dashboard.js"></script>
+
+<!-- AI-search toggle wiring (small inline) -->
+<script>
+  document.getElementById('ai-search-btn')?.addEventListener('click', function() {
+    const on = this.dataset.aiMode === 'on';
+    this.dataset.aiMode = on ? 'off' : 'on';
+    this.style.color = on ? '' : 'var(--accent-2)';
+    this.title = on ? 'Toggle AI semantic search' : 'AI search: ON';
+  });
+
+  document.getElementById('create-note-btn')?.addEventListener('click', () => {
+    import('./js/notes.js').then(m => m.openNoteModal());
+  });
+</script>
+
+</body>
+</html>
