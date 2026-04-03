@@ -10,17 +10,9 @@
  *  - Responsive sidebar
  */
 
-import { requireAuth, signOut } from './auth.js';
-import { initNotes, openNoteModal } from './notes.js';
-import { initYoutube } from './youtube.js';
-import { initResearch } from './research.js';
-import {
-  showToast, formatDate, timeAgo,
-  showSkeleton, sanitizeHTML,
-} from '../utils/helpers.js';
-import { supabaseClient } from '../services/supabaseClient.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
+window.currentUserId = window.currentUserId || null;
 let currentUser    = null;
 let currentProfile = null;
 let activeSection  = 'overview';
@@ -31,9 +23,10 @@ const initializedSections = new Set();
 (async () => {
   showPageLoader();
   try {
-    const { user, profile } = await requireAuth();
+    const { user, profile } = await window.requireAuth();
     currentUser    = user;
     currentProfile = profile;
+    window.currentUserId = user.id;
 
     populateUserUI();
     setupSidebar();
@@ -41,18 +34,14 @@ const initializedSections = new Set();
     setupSignOut();
     setupQuickActions();
 
-    // Navigate to hash section if present
     const hash = window.location.hash.slice(1);
     await navigateTo(hash || 'overview');
 
     hidePageLoader();
   } catch (err) {
-    // requireAuth already redirects on failure
     console.error('[Dashboard]', err);
   }
 })();
-
-// ─── Page Loader ──────────────────────────────────────────────────────────────
 
 function showPageLoader() {
   document.getElementById('page-loader')?.classList.remove('hidden');
@@ -65,20 +54,17 @@ function hidePageLoader() {
   }
 }
 
-// ─── Populate UI ─────────────────────────────────────────────────────────────
-
 function populateUserUI() {
   const name     = currentProfile.name  || 'User';
   const email    = currentProfile.email || '';
   const role     = currentProfile.role  || 'user';
   const avatarUrl = currentUser.user_metadata?.avatar_url;
 
-  // Sidebar user block
   const nameEls  = document.querySelectorAll('[data-user-name]');
   const roleEls  = document.querySelectorAll('[data-user-role]');
   const avatarEls = document.querySelectorAll('[data-user-avatar]');
 
-  nameEls.forEach  (el => el.textContent = sanitizeHTML(name));
+  nameEls.forEach  (el => el.textContent = window.sanitizeHTML(name));
   roleEls.forEach  (el => {
     el.textContent = role.charAt(0).toUpperCase() + role.slice(1);
     el.className   = `user-role badge badge-${role}`;
@@ -86,37 +72,31 @@ function populateUserUI() {
 
   avatarEls.forEach(el => {
     if (avatarUrl) {
-      el.innerHTML = `<img src="${avatarUrl}" alt="${sanitizeHTML(name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+      el.innerHTML = `<img src="${avatarUrl}" alt="${window.sanitizeHTML(name)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
     } else {
       el.textContent = name.charAt(0).toUpperCase();
     }
   });
 
-  // Show admin link only for admins
   if (role === 'admin') {
     document.getElementById('admin-nav-item')?.classList.remove('hidden');
   }
 }
-
-// ─── Sidebar Navigation ───────────────────────────────────────────────────────
 
 function setupSidebar() {
   const sidebar  = document.getElementById('sidebar');
   const overlay  = document.getElementById('sidebar-overlay');
   const menuBtn  = document.getElementById('menu-toggle');
 
-  // Nav items
   document.querySelectorAll('[data-section]').forEach(item => {
     item.addEventListener('click', async () => {
       const section = item.dataset.section;
       if (section === 'admin') { window.location.href = 'admin.html'; return; }
       await navigateTo(section);
-      // Close mobile sidebar
       if (window.innerWidth <= 768) closeSidebar();
     });
   });
 
-  // Mobile toggle
   menuBtn?.addEventListener('click', () => {
     sidebar?.classList.toggle('open');
     overlay?.classList.toggle('open');
@@ -130,8 +110,6 @@ function setupSidebar() {
   }
 }
 
-// ─── Section Navigation ───────────────────────────────────────────────────────
-
 async function navigateTo(section) {
   if (!['overview','notes','youtube','research','activity'].includes(section)) {
     section = 'overview';
@@ -140,17 +118,14 @@ async function navigateTo(section) {
   activeSection = section;
   window.location.hash = section;
 
-  // Update active nav state
   document.querySelectorAll('[data-section]').forEach(item => {
     item.classList.toggle('active', item.dataset.section === section);
   });
 
-  // Show/hide sections
   document.querySelectorAll('.section').forEach(el => {
     el.classList.toggle('active', el.id === `section-${section}`);
   });
 
-  // Update topbar title
   const titles = {
     overview : { title: 'Overview',           sub: `Welcome back, ${currentProfile.name}!` },
     notes    : { title: '📝 Notes',            sub: 'Manage your personal notes' },
@@ -164,7 +139,6 @@ async function navigateTo(section) {
   if (titleEl) titleEl.textContent = t.title;
   if (subEl)   subEl.textContent   = t.sub;
 
-  // Lazy init
   if (!initializedSections.has(section)) {
     initializedSections.add(section);
     await initSection(section);
@@ -172,33 +146,28 @@ async function navigateTo(section) {
 }
 
 async function initSection(section) {
-  const uid = currentUser.id;
   switch (section) {
     case 'overview':  await loadOverview();         break;
-    case 'notes':     await initNotes(uid);         break;
-    case 'youtube':         initYoutube(uid);       break;
-    case 'research':        initResearch(uid);      break;
+    case 'notes':     await window.initNotes(window.currentUserId);  break;
+    case 'youtube':         window.initYoutube(window.currentUserId);break;
+    case 'research':        window.initResearch(window.currentUserId);break;
     case 'activity':  await loadFullActivity();     break;
   }
 }
-
-// ─── Overview ─────────────────────────────────────────────────────────────────
 
 async function loadOverview() {
   await Promise.all([loadStats(), loadRecentActivity()]);
 }
 
 async function loadStats() {
-  const uid = currentUser.id;
-
   const [
     { count: notesCount },
     { count: summaryCount },
     { count: researchCount },
   ] = await Promise.all([
-    supabaseClient.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', uid),
-    supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('user_id', uid).eq('type', 'summarize'),
-    supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('user_id', uid).eq('type', 'research'),
+    window.supabaseClient.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', window.currentUserId),
+    window.supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('user_id', window.currentUserId).eq('type', 'summarize'),
+    window.supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('user_id', window.currentUserId).eq('type', 'research'),
   ]);
 
   animateCount('stat-notes',    notesCount    || 0);
@@ -221,16 +190,15 @@ function animateCount(id, target) {
 }
 
 async function loadRecentActivity() {
-  const uid  = currentUser.id;
   const feed = document.getElementById('recent-activity-feed');
   if (!feed) return;
 
-  showSkeleton(feed, 5, 'list');
+  window.showSkeleton(feed, 5, 'list');
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await window.supabaseClient
     .from('activity')
     .select('*')
-    .eq('user_id', uid)
+    .eq('user_id', window.currentUserId)
     .order('created_at', { ascending: false })
     .limit(10);
 
@@ -260,23 +228,22 @@ function renderActivityItem(item) {
     <div class="activity-item">
       <div class="activity-dot ${t.dot}">${t.icon}</div>
       <div class="activity-body">
-        <div class="activity-text">${t.label}${detail ? `: <em>${sanitizeHTML(detail.slice(0,60))}</em>` : ''}</div>
-        <div class="activity-time">${timeAgo(item.created_at)}</div>
+        <div class="activity-text">${t.label}${detail ? `: <em>${window.sanitizeHTML(detail.slice(0,60))}</em>` : ''}</div>
+        <div class="activity-time">${window.timeAgo(item.created_at)}</div>
       </div>
     </div>`;
 }
 
 async function loadFullActivity() {
-  const uid  = currentUser.id;
   const feed = document.getElementById('full-activity-feed');
   if (!feed) return;
 
-  showSkeleton(feed, 8, 'list');
+  window.showSkeleton(feed, 8, 'list');
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await window.supabaseClient
     .from('activity')
     .select('*')
-    .eq('user_id', uid)
+    .eq('user_id', window.currentUserId)
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -292,19 +259,15 @@ async function loadFullActivity() {
   feed.innerHTML = data.map(item => renderActivityItem(item)).join('');
 }
 
-// ─── Quick Actions ────────────────────────────────────────────────────────────
-
 function setupQuickActions() {
   document.getElementById('qa-create-note')?.addEventListener('click', async () => {
     await navigateTo('notes');
-    setTimeout(() => openNoteModal(), 300);
+    setTimeout(() => window.openNoteModal(), 300);
   });
 
   document.getElementById('qa-summarize')?.addEventListener('click', () => navigateTo('youtube'));
   document.getElementById('qa-research')?.addEventListener('click',  () => navigateTo('research'));
 }
-
-// ─── Theme Toggle ─────────────────────────────────────────────────────────────
 
 function setupThemeToggle() {
   const saved = localStorage.getItem('pos_theme') || 'dark';
@@ -318,14 +281,15 @@ function setupThemeToggle() {
   });
 }
 
-export function applyTheme(theme) {
+function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
 }
 
-// ─── Sign Out ─────────────────────────────────────────────────────────────────
-
 function setupSignOut() {
   document.getElementById('signout-btn')?.addEventListener('click', async () => {
-    if (confirm('Sign out of Personal OS?')) await signOut();
+    if (confirm('Sign out of Personal OS?')) await window.signOut();
   });
 }
+
+// Attach to window for global access
+window.applyTheme = applyTheme;

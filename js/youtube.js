@@ -8,17 +8,9 @@
  *  - Saves to activity log
  */
 
-import { supabaseClient } from '../services/supabaseClient.js';
-import { summarizeYouTubeVideo } from '../services/api.js';
-import { saveAsNote } from './notes.js';
-import {
-  showToast, sanitizeInput, sanitizeHTML,
-  setLoadingState, formatDate, timeAgo,
-  showSkeleton,
-} from '../utils/helpers.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let currentUserId   = null;
+window.currentUserId = window.currentUserId || null;
 let lastSummaryData = null;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -27,13 +19,12 @@ let lastSummaryData = null;
  * initYoutube – mount the YouTube summariser.
  * @param {string} userId
  */
-export function initYoutube(userId) {
-  currentUserId = userId;
+window.initYoutube = function(userId) {
+  console.log("YouTube initialized");
+  window.currentUserId = userId;
   setupYoutubeForm();
   loadSummaryHistory();
-}
-
-// ─── Form Setup ───────────────────────────────────────────────────────────────
+};
 
 function setupYoutubeForm() {
   const form    = document.getElementById('youtube-form');
@@ -51,7 +42,6 @@ function setupYoutubeForm() {
     saveBtn.addEventListener('click', handleSaveAsNote);
   }
 
-  // Paste helper
   input.addEventListener('paste', () => {
     setTimeout(() => {
       if (input.value.includes('youtube.com') || input.value.includes('youtu.be')) {
@@ -61,41 +51,37 @@ function setupYoutubeForm() {
   });
 }
 
-// ─── Summarize ────────────────────────────────────────────────────────────────
-
 async function handleSummarize(url) {
   const submitBtn = document.getElementById('yt-submit-btn');
   const resultEl  = document.getElementById('yt-result');
 
-  if (!url) { showToast('Please enter a YouTube URL.', 'warning'); return; }
+  if (!url) { window.showToast('Please enter a YouTube URL.', 'warning'); return; }
 
-  const cleanUrl = sanitizeInput(url);
+  const cleanUrl = window.sanitizeInput(url);
 
-  setLoadingState(submitBtn, true, 'Summarizing…');
+  window.setLoadingState(submitBtn, true, 'Summarizing…');
   showLoadingState(resultEl);
 
   try {
-    const data = await summarizeYouTubeVideo(cleanUrl);
+    const data = await window.summarizeYouTubeVideo(cleanUrl);
     lastSummaryData = data;
 
     renderSummary(resultEl, data);
     await logActivity('summarize', { url: cleanUrl, title: data.title });
     await loadSummaryHistory();
-    showToast('Summary ready!', 'success');
+    window.showToast('Summary ready!', 'success');
   } catch (err) {
     resultEl.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">⚠️</div>
         <h3>Summarization failed</h3>
-        <p>${sanitizeHTML(err.message)}</p>
+        <p>${window.sanitizeHTML(err.message)}</p>
       </div>`;
-    showToast('Error: ' + err.message, 'error');
+    window.showToast('Error: ' + err.message, 'error');
   } finally {
-    setLoadingState(submitBtn, false);
+    window.setLoadingState(submitBtn, false);
   }
 }
-
-// ─── Render Summary ───────────────────────────────────────────────────────────
 
 function showLoadingState(container) {
   container.innerHTML = `
@@ -117,18 +103,18 @@ function renderSummary(container, data) {
   const kpHTML = data.keyPoints.map((pt, i) => `
     <div class="key-point">
       <span class="key-point-num">${i + 1}.</span>
-      <span>${sanitizeHTML(pt)}</span>
+      <span>${window.sanitizeHTML(pt)}</span>
     </div>
   `).join('');
 
   container.innerHTML = `
     <div class="yt-result fade-in">
       <div class="yt-thumb">
-        <img src="${sanitizeHTML(data.thumbnail)}" alt="Video thumbnail" loading="lazy">
+        <img src="${window.sanitizeHTML(data.thumbnail)}" alt="Video thumbnail" loading="lazy">
       </div>
       <div class="yt-info">
-        <h3 class="yt-title">${sanitizeHTML(data.title)}</h3>
-        <p class="yt-summary">${sanitizeHTML(data.summary)}</p>
+        <h3 class="yt-title">${window.sanitizeHTML(data.title)}</h3>
+        <p class="yt-summary">${window.sanitizeHTML(data.summary)}</p>
         <div>
           <h4 style="margin-bottom:10px;font-size:.875rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Key Takeaways</h4>
           <div class="key-points">${kpHTML}</div>
@@ -141,22 +127,19 @@ function renderSummary(container, data) {
     </div>
   `;
 
-  // Bind buttons
   document.getElementById('yt-save-note-btn')?.addEventListener('click', handleSaveAsNote);
   document.getElementById('yt-copy-btn')?.addEventListener('click', () => {
     navigator.clipboard.writeText(
       `${data.title}\n\nSummary:\n${data.summary}\n\nKey Points:\n${data.keyPoints.map((p,i)=>`${i+1}. ${p}`).join('\n')}`
-    ).then(() => showToast('Copied to clipboard!', 'success'));
+    ).then(() => window.showToast('Copied to clipboard!', 'success'));
   });
 }
 
-// ─── Save as Note ─────────────────────────────────────────────────────────────
-
 async function handleSaveAsNote(e) {
   const btn = e.currentTarget;
-  if (!lastSummaryData) { showToast('No summary to save.', 'warning'); return; }
+  if (!lastSummaryData) { window.showToast('No summary to save.', 'warning'); return; }
 
-  setLoadingState(btn, true, 'Saving…');
+  window.setLoadingState(btn, true, 'Saving…');
   try {
     const { title, summary, keyPoints } = lastSummaryData;
     const content = `
@@ -165,9 +148,8 @@ async function handleSaveAsNote(e) {
       <h3>Key Takeaways</h3>
       <ol>${keyPoints.map(p => `<li>${p}</li>`).join('')}</ol>
     `;
-    await saveAsNote(`📺 ${title}`, content);
+    await window.saveAsNote(`📺 ${title}`, content);
 
-    // Provide visual success state and add reset button
     btn.dataset.originalText = '✓ Saved as Note';
     
     if (!document.getElementById('yt-new-summary')) {
@@ -184,7 +166,7 @@ async function handleSaveAsNote(e) {
       btn.parentElement.appendChild(newBtn);
     }
   } finally {
-    setLoadingState(btn, false);
+    window.setLoadingState(btn, false);
     if (btn.dataset.originalText === '✓ Saved as Note') {
        btn.disabled = true;
        btn.style.opacity = '0.7';
@@ -192,26 +174,24 @@ async function handleSaveAsNote(e) {
   }
 }
 
-// ─── Activity / History ───────────────────────────────────────────────────────
-
 async function logActivity(type, data) {
-  if (!currentUserId) return;
-  const { error } = await supabaseClient
+  if (!window.currentUserId) return;
+  const { error } = await window.supabaseClient
     .from('activity')
-    .insert([{ user_id: currentUserId, type, data }]);
+    .insert([{ user_id: window.currentUserId, type, data }]);
   if (error) console.warn('[YouTube] Activity log failed:', error);
 }
 
 async function loadSummaryHistory() {
   const list = document.getElementById('yt-history-list');
-  if (!list || !currentUserId) return;
+  if (!list || !window.currentUserId) return;
 
   list.innerHTML = '<div class="loader-ring" style="margin:20px auto"></div>';
 
-  const { data, error } = await supabaseClient
+  const { data, error } = await window.supabaseClient
     .from('activity')
     .select('*')
-    .eq('user_id', currentUserId)
+    .eq('user_id', window.currentUserId)
     .eq('type', 'summarize')
     .order('created_at', { ascending: false })
     .limit(10);
@@ -229,9 +209,10 @@ async function loadSummaryHistory() {
     <div class="activity-item">
       <div class="activity-dot summarize">🎥</div>
       <div class="activity-body">
-        <div class="activity-text">${sanitizeHTML(item.data?.title || 'YouTube Video')}</div>
-        <div class="activity-time">${timeAgo(item.created_at)}</div>
+        <div class="activity-text">${window.sanitizeHTML(item.data?.title || 'YouTube Video')}</div>
+        <div class="activity-time">${window.timeAgo(item.created_at)}</div>
       </div>
     </div>
   `).join('');
 }
+

@@ -11,7 +11,7 @@ personal-os/
 │── index.html          ← Login page (Google OAuth)
 │── dashboard.html      ← User dashboard
 │── admin.html          ← Admin dashboard (role-protected)
-│── env-config.js       ← 🔑 Your API keys (never commit this!)
+│── .env.local          ← 🔑 Local environment variables
 │── supabase_setup.sql  ← Run once in Supabase SQL Editor
 │
 ├── css/
@@ -61,20 +61,21 @@ personal-os/
 1. Go to [aistudio.google.com](https://aistudio.google.com)
 2. Create an API key (free tier available)
 
-### 4. Configure `env-config.js`
+### 4. Configure Environment Variables
 
-Edit `env-config.js` and fill in your credentials:
+This project uses `process.env` for security. Create a `.env.local` file in the root directory:
 
-```js
-window.ENV = {
-  SUPABASE_URL     : 'https://YOUR_PROJECT.supabase.co',
-  SUPABASE_ANON_KEY: 'YOUR_SUPABASE_ANON_KEY',
-  GEMINI_API_KEY   : 'YOUR_GEMINI_API_KEY',
-  YOUTUBE_API_KEY  : 'YOUR_YOUTUBE_DATA_API_KEY',  // optional
-};
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+NEXT_PUBLIC_GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+NEXT_PUBLIC_YOUTUBE_API_KEY=YOUR_YOUTUBE_DATA_API_KEY
 ```
 
-> ⚠️ **NEVER commit `env-config.js` with real keys to git!**
+> [!IMPORTANT]
+> Since this is a vanilla JS project, you MUST use a build step (like Vite or Next.js) or a deployment platform like Vercel that handles `process.env` injection to make these variables available in the browser.
+
+> ⚠️ **NEVER commit `.env.local` (or any .env files) to git!**
 
 ---
 
@@ -141,7 +142,7 @@ All tables have **Row Level Security** — users can only access their own data.
 
 ## 🛡️ Security
 
-- **No API keys in git** — all secrets in `env-config.js` (gitignored)
+- **No API keys in git** — all secrets in environment variables (gitignored)
 - **Row Level Security** on all Supabase tables
 - **Input sanitization** via `sanitizeInput()` / `sanitizeHTML()` 
 - **Admin route protection** — server-side role check in `requireAdmin()`
@@ -164,8 +165,8 @@ All tables have **Row Level Security** — users can only access their own data.
 Create a `.gitignore` file:
 
 ```gitignore
-env-config.js
-*.env
+.env
+.env.local
 .DS_Store
 Thumbs.db
 ```
@@ -178,7 +179,7 @@ Thumbs.db
 |---------|-----|
 | Blank page after login | Check browser console for errors; verify Supabase URL/key in `env-config.js` |
 | OAuth redirect error | Add correct redirect URL in both Google Console and Supabase Auth settings |
-| AI not working | Verify `GEMINI_API_KEY` is set and correct in `env-config.js` |
+| AI not working | Verify `NEXT_PUBLIC_GEMINI_API_KEY` is set correctly |
 | CORS errors | Serve via Live Server or http-server, not by opening HTML directly |
 | "Could not create profile" | Ensure `supabase_setup.sql` ran successfully; check RLS policies |
 | Videos not summarizing | YouTube Data API key optional; app falls back to mock metadata |

@@ -6,8 +6,6 @@
   <meta name="description" content="Admin Dashboard – Personal OS. Manage users, view statistics, and maintain the platform.">
   <title>Admin – Personal OS</title>
 
-  <!-- Env config FIRST -->
-  <script src="env-config.js"></script>
 
   <!-- Styles -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,6 +13,14 @@
 
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  
+  <!-- Core Utilities & Services -->
+  <script src="utils/helpers.js"></script>
+  <script src="services/supabaseClient.js"></script>
+  
+  <!-- Admin Module -->
+  <script src="js/auth.js"></script>
+  <script src="js/admin.js"></script>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
 </head>
@@ -182,7 +188,6 @@
 </div>
 
 <!-- ─── Scripts ───────────────────────────────────────────────────────────── -->
-<script type="module" src="js/admin.js"></script>
 
 <!-- Sidebar tabs + search filter -->
 <script>
@@ -211,7 +216,7 @@
 
   // Refresh button
   document.getElementById('refresh-users-btn')?.addEventListener('click', () => {
-    import('./js/admin.js').catch(() => location.reload());
+    location.reload();
   });
 
   // Live search filter on table rows
@@ -224,8 +229,9 @@
 
   // Load recent platform activity
   async function loadAdminActivity() {
-    const { createClient } = supabase;
-    const client = createClient(window.ENV?.SUPABASE_URL, window.ENV?.SUPABASE_ANON_KEY);
+    const client = window.supabaseClient;
+    if (!client) return;
+
     const { data } = await client
       .from('activity')
       .select('*, profiles(name, email)')
@@ -260,8 +266,8 @@
     }).join('');
   }
 
-  // Run after a short delay to allow admin.js to init first
-  setTimeout(loadAdminActivity, 2000);
+  // Run after a short delay
+  setTimeout(loadAdminActivity, 1500);
 </script>
 
 </body>

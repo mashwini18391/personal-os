@@ -8,15 +8,16 @@
     content="Personal OS – Your AI-powered workspace for notes, YouTube summaries, and research. Sign in with Google to get started.">
   <title>Sign In – Personal OS</title>
 
-  <!-- Env config FIRST -->
-  <script src="env-config.js"></script>
 
   <!-- Styles -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="css/styles.css">
 
   <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils/helpers.js"></script>
+  <script src="services/supabaseClient.js"></script>
+  <script src="js/auth.js"></script>
 
   <!-- Favicon placeholder -->
   <link rel="icon"
@@ -67,11 +68,16 @@
       <div class="divider" style="margin:20px 0"><span>or continue with email</span></div>
 
       <form id="email-login-form" style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
-        <input type="email" id="email-input" class="form-input" placeholder="name@example.com" required autocomplete="email">
-        <input type="password" id="password-input" class="form-input" placeholder="Password (min 6 chars)" required minlength="6" autocomplete="current-password">
+        <input type="email" id="email-input" class="form-input" placeholder="name@example.com" required
+          autocomplete="email">
+        <input type="password" id="password-input" class="form-input" placeholder="Password (min 6 chars)" required
+          minlength="6" autocomplete="current-password">
         <div style="display:flex;gap:10px;margin-top:4px;">
-          <button type="submit" class="btn btn-secondary" style="flex:1" id="email-signin-btn" data-action="signin">Sign In</button>
-          <button type="submit" class="btn btn-outline" style="flex:1;background:transparent;border:1px solid var(--border-color);color:var(--text-color);" id="email-signup-btn" data-action="signup">Sign Up</button>
+          <button type="submit" class="btn btn-secondary" style="flex:1" id="email-signin-btn" data-action="signin">Sign
+            In</button>
+          <button type="submit" class="btn btn-outline"
+            style="flex:1;background:transparent;border:1px solid var(--border-color);color:var(--text-color);"
+            id="email-signup-btn" data-action="signup">Sign Up</button>
         </div>
       </form>
 
@@ -112,23 +118,20 @@
   </div>
 
   <!-- ─── Scripts ──────────────────────────────────────────────────────────── -->
-  <script type="module">
-    import { signInWithGoogle, signInWithEmailPassword, signUpWithEmailPassword, redirectIfLoggedIn } from './js/auth.js';
-    import { showToast } from './utils/helpers.js';
-
+  <script>
     // Restore saved theme
     const saved = localStorage.getItem('pos_theme') || 'dark';
     document.documentElement.dataset.theme = saved;
 
     // Redirect if already logged in
-    redirectIfLoggedIn();
+    window.redirectIfLoggedIn();
 
     // Google login button
     document.getElementById('google-login-btn').addEventListener('click', async () => {
       const btn = document.getElementById('google-login-btn');
       btn.disabled = true;
       btn.innerHTML = `<span class="btn-spinner" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span> Redirecting…`;
-      await signInWithGoogle();
+      await window.signInWithGoogle();
       btn.disabled = false;
     });
 
@@ -152,7 +155,7 @@
       const inputPass = document.getElementById('password-input');
       const signInBtn = document.getElementById('email-signin-btn');
       const signUpBtn = document.getElementById('email-signup-btn');
-      
+
       const email = inputMail.value.trim();
       const password = inputPass.value;
       if (!email || !password) return;
@@ -164,12 +167,12 @@
       activeBtn.innerHTML = `<span class="btn-spinner" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span> Wait…`;
       signInBtn.disabled = true;
       signUpBtn.disabled = true;
-      
+
       let success = false;
       if (currentAuthAction === 'signin') {
-        success = await signInWithEmailPassword(email, password);
+        success = await window.signInWithEmailPassword(email, password);
       } else {
-        success = await signUpWithEmailPassword(email, password);
+        success = await window.signUpWithEmailPassword(email, password);
       }
 
       if (success && currentAuthAction === 'signin') {

@@ -43,29 +43,51 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity ENABLE ROW LEVEL SECURITY;
 
--- profiles: users read/update own row; admins read all
+-- ─── 4. Helper: Admin Check Function ──────────────────────────────
+-- Clean up existing function if it exists
+DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
+
+-- Using a SECURITY DEFINER function avoids RLS infinite recursion
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- profiles: Clean up old policies
+DROP POLICY IF EXISTS "profiles_self_read"   ON public.profiles;
+DROP POLICY IF EXISTS "profiles_self_update" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_own"  ON public.profiles;
+DROP POLICY IF EXISTS "profiles_admin_read"  ON public.profiles;
+DROP POLICY IF EXISTS "profiles_admin_delete" ON public.profiles;
+
+-- profiles: Recreate policies
 CREATE POLICY "profiles_self_read"   ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "profiles_self_update" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "profiles_insert_own"  ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "profiles_admin_read"  ON public.profiles FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
-CREATE POLICY "profiles_admin_delete" ON public.profiles FOR DELETE USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+CREATE POLICY "profiles_admin_read"  ON public.profiles FOR SELECT USING (is_admin());
+CREATE POLICY "profiles_admin_delete" ON public.profiles FOR DELETE USING (is_admin());
 
--- notes: users manage their own notes only
+-- notes: Clean up and recreate
+DROP POLICY IF EXISTS "notes_crud_own" ON public.notes;
 CREATE POLICY "notes_crud_own" ON public.notes FOR ALL USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- activity: users manage their own activity; admins read all
+-- activity: Clean up and recreate
+DROP POLICY IF EXISTS "activity_own"  ON public.activity;
+DROP POLICY IF EXISTS "activity_admin_read" ON public.activity;
+
 CREATE POLICY "activity_own"  ON public.activity FOR ALL USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "activity_admin_read" ON public.activity FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+CREATE POLICY "activity_admin_read" ON public.activity FOR SELECT USING (is_admin());
 
 -- ─── Function: auto-create profile on sign-up ─────────────────────
+DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE

@@ -23,7 +23,7 @@ function ensureToastContainer() {
  * @param {'success'|'error'|'info'|'warning'} type
  * @param {number} duration milliseconds
  */
-export function showToast(message, type = 'info', duration = 3500) {
+function showToast(message, type = 'info', duration = 3500) {
   const container = ensureToastContainer();
 
   const icons = {
@@ -64,7 +64,7 @@ function removeToast(toast) {
  * @param {string} str
  * @returns {string}
  */
-export function sanitizeHTML(str) {
+function sanitizeHTML(str) {
   if (!str) return '';
   const div = document.createElement('div');
   div.textContent = String(str);
@@ -76,7 +76,7 @@ export function sanitizeHTML(str) {
  * @param {string} input
  * @returns {string}
  */
-export function sanitizeInput(input) {
+function sanitizeInput(input) {
   if (!input) return '';
   return String(input)
     .trim()
@@ -101,7 +101,7 @@ function getUTCDate(dateInput) {
  * @param {string|Date} dateInput
  * @returns {string}
  */
-export function formatDate(dateInput) {
+function formatDate(dateInput) {
   if (!dateInput) return '—';
   const d = getUTCDate(dateInput);
   if (isNaN(d)) return '—';
@@ -119,7 +119,7 @@ export function formatDate(dateInput) {
  * @param {string|Date} dateInput
  * @returns {string}
  */
-export function timeAgo(dateInput) {
+function timeAgo(dateInput) {
   if (!dateInput) return '';
   const now  = Date.now();
   const then = getUTCDate(dateInput).getTime();
@@ -140,7 +140,7 @@ export function timeAgo(dateInput) {
  * @param {number} delay ms
  * @returns {Function}
  */
-export function debounce(fn, delay = 300) {
+function debounce(fn, delay = 300) {
   let timer;
   return (...args) => {
     clearTimeout(timer);
@@ -154,7 +154,7 @@ export function debounce(fn, delay = 300) {
  * @param {number} limit ms
  * @returns {Function}
  */
-export function throttle(fn, limit = 300) {
+function throttle(fn, limit = 300) {
   let last = 0;
   return (...args) => {
     const now = Date.now();
@@ -171,7 +171,7 @@ export function throttle(fn, limit = 300) {
  * @param {string|Node|Array} children
  * @returns {HTMLElement}
  */
-export function createElement(tag, props = {}, children = []) {
+function createElement(tag, props = {}, children = []) {
   const el = document.createElement(tag);
   Object.entries(props).forEach(([k, v]) => {
     if (k === 'className') el.className = v;
@@ -191,7 +191,7 @@ export function createElement(tag, props = {}, children = []) {
  * @param {number} count
  * @param {string} type 'card'|'list'
  */
-export function showSkeleton(container, count = 3, type = 'card') {
+function showSkeleton(container, count = 3, type = 'card') {
   container.innerHTML = Array.from({ length: count }, () =>
     type === 'card'
       ? `<div class="skeleton-card">
@@ -215,7 +215,7 @@ export function showSkeleton(container, count = 3, type = 'card') {
  * @param {boolean} loading
  * @param {string} loadingText
  */
-export function setLoadingState(btn, loading, loadingText = 'Loading...') {
+function setLoadingState(btn, loading, loadingText = 'Loading...') {
   if (!btn) return;
   if (loading) {
     btn.dataset.originalText = btn.textContent;
@@ -232,7 +232,7 @@ export function setLoadingState(btn, loading, loadingText = 'Loading...') {
 /**
  * cache – simple localStorage-based cache with TTL.
  */
-export const cache = {
+const cache = {
   set(key, value, ttlMs = 300_000) {
     try {
       localStorage.setItem(`cache_${key}`, JSON.stringify({ value, exp: Date.now() + ttlMs }));
@@ -259,7 +259,7 @@ export const cache = {
  * @param {string} str
  * @param {number} max
  */
-export function truncate(str, max = 120) {
+function truncate(str, max = 120) {
   if (!str || str.length <= max) return str || '';
   return str.slice(0, max).trimEnd() + '…';
 }
@@ -267,6 +267,21 @@ export function truncate(str, max = 120) {
 /**
  * generateId – random short ID for temporary client-side keys.
  */
-export function generateId() {
+function generateId() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+// Attach to window for global access (vanilla JS)
+window.showToast      = showToast;
+window.sanitizeHTML   = sanitizeHTML;
+window.sanitizeInput  = sanitizeInput;
+window.formatDate     = formatDate;
+window.timeAgo        = timeAgo;
+window.debounce       = debounce;
+window.throttle       = throttle;
+window.createElement  = createElement;
+window.showSkeleton   = showSkeleton;
+window.setLoadingState = setLoadingState;
+window.cache          = cache;
+window.truncate       = truncate;
+window.generateId     = generateId;

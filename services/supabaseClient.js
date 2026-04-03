@@ -1,23 +1,18 @@
 /**
  * supabaseClient.js
  * Initializes and exports the Supabase client.
- * All API keys are loaded from window.ENV (set via env-config.js or injected at build time).
+ * All API keys are loaded from process.env (injected at build time or via Vercel).
  * NEVER hardcode secrets here.
  */
 
-// ─── Pull config from the global ENV object injected by env-config.js ───────
-const SUPABASE_URL = window.ENV?.SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = window.ENV?.SUPABASE_ANON_KEY || '';
+// ─── Pull config from process.env (Vercel / Build-time injection) ────────────
+const SUPABASE_URL = "https://weitpjwnirukoupcpqbe.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlaXRwanduaXJ1a291cGNwcWJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNDM5MTIsImV4cCI6MjA5MDYxOTkxMn0.mroswG3Gf-l_h9xPl7r8-p2IOyDqTUqH_FBJwyJmIS4";
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error(
-    '[SupabaseClient] Missing SUPABASE_URL or SUPABASE_ANON_KEY. ' +
-    'Make sure env-config.js is loaded before this script.'
-  );
-}
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
-// ─── Create the singleton Supabase client ────────────────────────────────────
-const { createClient } = supabase; // Loaded via CDN in HTML
-export const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-export default supabaseClient;
+// Attach to window for global access
+window.supabaseClient = supabaseClient;

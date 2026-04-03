@@ -6,33 +6,34 @@
  *
  * NOTE: In a real production app these calls would go through
  * your own server-side proxy so keys are never exposed.
- * For this client-only demo, keys are read from window.ENV.
+ * For this client-only demo, keys are read from environment variables.
  */
 
-import { showToast } from '../utils/helpers.js';
 
-const GEMINI_API_KEY  = window.ENV?.GEMINI_API_KEY  || '';
-const YOUTUBE_API_KEY = window.ENV?.YOUTUBE_API_KEY || '';
-const GEMINI_BASE     = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI_API_KEY = "AIzaSyB9vtH-VrzPM5TN1hDiHrSoesY5RA8cEyM";
+const YOUTUBE_API_KEY = "AIzaSyASOrmX6jHYj_sMScGWIOByZFxf24JNgn4";
+const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 // ─── Helper: call Gemini ─────────────────────────────────────────────────────
 async function callGemini(prompt) {
-  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set');
+  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured in your environment.');
 
   const res = await fetch(`${GEMINI_BASE}?key=${GEMINI_API_KEY}`, {
-    method : 'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body   : JSON.stringify({
+    body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
     }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini API error ${res.status}`);
+    console.error('[Gemini API Error Output]:', err);
+    throw new Error(`Gemini AI Error (${res.status}): ${err?.error?.message || 'Check your API key or usage limits.'}`);
   }
 
   const data = await res.json();
+  console.log('[Gemini API Full Response]:', data);
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
@@ -43,16 +44,11 @@ async function callGemini(prompt) {
  * @param {string} url
  * @returns {string|null}
  */
-export function extractVideoId(url) {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{11})/,
-    /youtube\.com\/shorts\/([A-Za-z0-9_-]{11})/,
-  ];
-  for (const re of patterns) {
-    const m = url.match(re);
-    if (m) return m[1];
-  }
-  return null;
+function extractVideoId(url) {
+  if (!url) return null;
+  const re = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+  const match = url.match(re);
+  return match ? match[1] : null;
 }
 
 /**
@@ -60,30 +56,38 @@ export function extractVideoId(url) {
  * Falls back to a mock if no API key is provided.
  * @param {string} videoId
  */
-export async function fetchYouTubeMetadata(videoId) {
+async function fetchYouTubeMetadata(videoId) {
   if (!YOUTUBE_API_KEY) {
-    // Mock data so the app still works during demo
-    return {
-      title      : `YouTube Video – ${videoId}`,
-      description: 'No YouTube API key configured. Using mock metadata.',
-      thumbnail  : `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
-    };
+    throw new Error('YouTube API Key is missing. Please ensure it is set in your environment configuration.');
   }
 
-  const url = `https://www.googleapis.com/youtube/v3/videos` +
-    `?id=${videoId}&part=snippet&key=${YOUTUBE_API_KEY}`;
+  const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet&key=${YOUTUBE_API_KEY}`;
 
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`YouTube API error ${res.status}`);
 
-  const data  = await res.json();
-  const item  = data.items?.[0]?.snippet;
-  if (!item) throw new Error('Video not found');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    console.error('[YouTube API Error Output]:', errorData);
+
+    if (res.status === 400 || res.status === 403) {
+      throw new Error(`YouTube API Invalid Request (${res.status}): ${errorData?.error?.message || 'Check your API key and permissions.'}`);
+    } else if (res.status >= 500) {
+      throw new Error(`YouTube API Server Error (${res.status}): Please try again later.`);
+    } else {
+      throw new Error(`YouTube API error ${res.status}: ${errorData?.error?.message || 'Unknown error'}`);
+    }
+  }
+
+  const data = await res.json();
+  console.log('[YouTube API Full Response]:', data);
+
+  const item = data.items?.[0]?.snippet;
+  if (!item) throw new Error(`Video not found for ID: ${videoId}`);
 
   return {
-    title      : item.title,
+    title: item.title,
     description: item.description,
-    thumbnail  : item.thumbnails?.high?.url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    thumbnail: item.thumbnails?.high?.url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
   };
 }
 
@@ -92,7 +96,7 @@ export async function fetchYouTubeMetadata(videoId) {
  * @param {string} videoUrl
  * @returns {{ title, thumbnail, summary, keyPoints: string[] }}
  */
-export async function summarizeYouTubeVideo(videoUrl) {
+async function summarizeYouTubeVideo(videoUrl) {
   const videoId = extractVideoId(videoUrl);
   if (!videoId) throw new Error('Invalid YouTube URL');
 
@@ -123,10 +127,10 @@ KEY POINTS:
   const raw = await callGemini(prompt);
 
   // Parse the structured response
-  const summaryMatch   = raw.match(/SUMMARY:\s*([\s\S]*?)(?=KEY POINTS:|$)/i);
+  const summaryMatch = raw.match(/SUMMARY:\s*([\s\S]*?)(?=KEY POINTS:|$)/i);
   const keyPointsMatch = raw.match(/KEY POINTS:\s*([\s\S]*)/i);
 
-  const summary   = summaryMatch?.[1]?.trim()   || raw;
+  const summary = summaryMatch?.[1]?.trim() || raw;
   const keyPoints = keyPointsMatch?.[1]
     ?.split('\n')
     .map(l => l.replace(/^[•\-*]\s*/, '').trim())
@@ -143,7 +147,7 @@ KEY POINTS:
  * @param {string} question
  * @returns {{ answer: string, sources: { title: string, url: string }[] }}
  */
-export async function performAIResearch(question) {
+async function performAIResearch(question) {
   if (!question?.trim()) throw new Error('Question cannot be empty');
 
   const prompt = `
@@ -166,7 +170,7 @@ Note: Provide realistic source URLs relevant to the topic.
 
   const raw = await callGemini(prompt);
 
-  const answerMatch  = raw.match(/ANSWER:\s*([\s\S]*?)(?=SOURCES:|$)/i);
+  const answerMatch = raw.match(/ANSWER:\s*([\s\S]*?)(?=SOURCES:|$)/i);
   const sourcesMatch = raw.match(/SOURCES:\s*([\s\S]*)/i);
 
   const answer = answerMatch?.[1]?.trim() || raw;
@@ -189,7 +193,7 @@ Note: Provide realistic source URLs relevant to the topic.
  * @param {{ title: string, content: string }[]} notes
  * @returns {number[]} indices of matching notes
  */
-export async function generateAINoteSearch(query, notes) {
+async function generateAINoteSearch(query, notes) {
   if (!notes.length) return [];
 
   const noteList = notes.map((n, i) =>
@@ -216,3 +220,10 @@ Relevant note indices:
     return [];
   }
 }
+
+// Attach to window for global access
+window.extractVideoId = extractVideoId;
+window.fetchYouTubeMetadata = fetchYouTubeMetadata;
+window.summarizeYouTubeVideo = summarizeYouTubeVideo;
+window.performAIResearch = performAIResearch;
+window.generateAINoteSearch = generateAINoteSearch;

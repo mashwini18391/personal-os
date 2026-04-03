@@ -4,16 +4,9 @@
  * search, sort, and "AI search" via Gemini.
  */
 
-import { supabaseClient } from '../services/supabaseClient.js';
-import { generateAINoteSearch } from '../services/api.js';
-import {
-  showToast, sanitizeInput, sanitizeHTML,
-  formatDate, timeAgo, debounce, showSkeleton,
-  setLoadingState, truncate,
-} from '../utils/helpers.js';
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let currentUserId = null;
+window.currentUserId = window.currentUserId || null;
 let allNotes      = [];
 let editingNoteId = null;
 let quill         = null;
@@ -24,33 +17,29 @@ let quill         = null;
  * initNotes – bootstraps the notes module.
  * @param {string} userId
  */
-export async function initNotes(userId) {
-  currentUserId = userId;
+async function initNotes(userId) {
+  window.currentUserId = userId;
   setupNoteModal();
   setupSearch();
   setupSort();
   await loadNotes();
 }
 
-// ─── Supabase CRUD ────────────────────────────────────────────────────────────
-
-/** Fetch all notes for the current user, ordered by created_at desc. */
 async function fetchNotes(sortBy = 'created_at') {
-  const { data, error } = await supabaseClient
+  const { data, error } = await window.supabaseClient
     .from('notes')
     .select('*')
-    .eq('user_id', currentUserId)
+    .eq('user_id', window.currentUserId)
     .order(sortBy, { ascending: false });
 
   if (error) throw new Error(error.message);
   return data || [];
 }
 
-/** Create a new note. */
 async function createNote(title, content) {
-  const { data, error } = await supabaseClient
+  const { data, error } = await window.supabaseClient
     .from('notes')
-    .insert([{ user_id: currentUserId, title, content }])
+    .insert([{ user_id: window.currentUserId, title, content }])
     .select()
     .single();
 
@@ -58,13 +47,12 @@ async function createNote(title, content) {
   return data;
 }
 
-/** Update an existing note. */
 async function updateNote(id, title, content) {
-  const { data, error } = await supabaseClient
+  const { data, error } = await window.supabaseClient
     .from('notes')
     .update({ title, content })
     .eq('id', id)
-    .eq('user_id', currentUserId)  // RLS double-check
+    .eq('user_id', window.currentUserId)
     .select()
     .single();
 
@@ -72,51 +60,43 @@ async function updateNote(id, title, content) {
   return data;
 }
 
-/** Delete a note by id. */
 async function deleteNote(id) {
-  const { error } = await supabaseClient
+  const { error } = await window.supabaseClient
     .from('notes')
     .delete()
     .eq('id', id)
-    .eq('user_id', currentUserId);
+    .eq('user_id', window.currentUserId);
 
   if (error) throw new Error(error.message);
 }
 
-// ─── Activity Logger ──────────────────────────────────────────────────────────
-
 async function logActivity(type, data) {
-  await supabaseClient
+  await window.supabaseClient
     .from('activity')
-    .insert([{ user_id: currentUserId, type, data }])
+    .insert([{ user_id: window.currentUserId, type, data }])
     .then(({ error }) => { if (error) console.warn('[Notes] Activity log failed:', error); });
 }
 
-// ─── UI / Render ──────────────────────────────────────────────────────────────
-
-/** Load and render notes. */
-export async function loadNotes() {
+async function loadNotes() {
   const container = document.getElementById('notes-grid');
   if (!container) return;
 
-  showSkeleton(container, 6, 'card');
+  window.showSkeleton(container, 6, 'card');
 
   try {
     const sortBy = document.getElementById('notes-sort')?.value || 'created_at';
     allNotes = await fetchNotes(sortBy);
     renderNotes(allNotes);
   } catch (err) {
-    showToast('Failed to load notes: ' + err.message, 'error');
+    window.showToast('Failed to load notes: ' + err.message, 'error');
     container.innerHTML = '<p class="text-center" style="color:var(--text-muted)">Error loading notes.</p>';
   }
 }
 
-/** Render an array of notes into the grid. */
 function renderNotes(notes) {
   const container = document.getElementById('notes-grid');
   if (!container) return;
 
-  // Update count badge
   const badge = document.getElementById('notes-count');
   if (badge) badge.textContent = notes.length;
 
@@ -132,11 +112,11 @@ function renderNotes(notes) {
 
   container.innerHTML = notes.map(note => `
     <div class="note-card fade-in" data-id="${note.id}" role="button" tabindex="0"
-         aria-label="Note: ${sanitizeHTML(note.title)}">
-      <div class="note-title">${sanitizeHTML(note.title)}</div>
-      <div class="note-content">${truncate(stripHTML(note.content), 140)}</div>
+         aria-label="Note: ${window.sanitizeHTML(note.title)}">
+      <div class="note-title">${window.sanitizeHTML(note.title)}</div>
+      <div class="note-content">${window.truncate(stripHTML(note.content), 140)}</div>
       <div class="note-meta">
-        <span class="note-date">🕐 ${timeAgo(note.created_at)}</span>
+        <span class="note-date">🕐 ${window.timeAgo(note.created_at)}</span>
         <div class="note-actions">
           <button class="btn btn-ghost btn-sm btn-icon" data-action="edit" data-id="${note.id}"
                   title="Edit note" aria-label="Edit note">✏️</button>
@@ -147,21 +127,18 @@ function renderNotes(notes) {
     </div>
   `).join('');
 
-  // Event delegation
   container.addEventListener('click', handleNoteClick);
   container.addEventListener('keydown', e => {
     if (e.key === 'Enter') handleNoteClick(e);
   });
 }
 
-/** Strip HTML from Quill content for preview. */
 function stripHTML(html) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html || '';
   return tmp.textContent || '';
 }
 
-/** Handle clicks inside the notes grid. */
 function handleNoteClick(e) {
   const btn = e.target.closest('[data-action]');
   if (btn) {
@@ -175,10 +152,7 @@ function handleNoteClick(e) {
   if (card) openNoteModal(card.dataset.id);
 }
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
-
 function setupNoteModal() {
-  // Create modal HTML once
   if (document.getElementById('note-modal')) return;
 
   const modal = document.createElement('div');
@@ -210,7 +184,6 @@ function setupNoteModal() {
   `;
   document.body.appendChild(modal);
 
-  // Init Quill
   if (window.Quill) {
     quill = new Quill('#note-quill-editor', {
       theme  : 'snow',
@@ -225,7 +198,6 @@ function setupNoteModal() {
     });
   }
 
-  // Listeners
   document.getElementById('note-modal-close').addEventListener('click', closeNoteModal);
   document.getElementById('note-cancel-btn').addEventListener('click', closeNoteModal);
   document.getElementById('note-save-btn').addEventListener('click', handleSaveNote);
@@ -233,8 +205,7 @@ function setupNoteModal() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNoteModal(); });
 }
 
-/** Open modal for creating or editing. */
-export function openNoteModal(noteId = null) {
+function openNoteModal(noteId = null) {
   const modal = document.getElementById('note-modal');
   if (!modal) { setupNoteModal(); }
 
@@ -268,34 +239,34 @@ function closeNoteModal() {
 async function handleSaveNote() {
   const btn     = document.getElementById('note-save-btn');
   const titleRaw = document.getElementById('note-title-input').value;
-  const title    = sanitizeInput(titleRaw);
+  const title    = window.sanitizeInput(titleRaw);
 
-  if (!title) { showToast('Title is required.', 'warning'); return; }
+  if (!title) { window.showToast('Title is required.', 'warning'); return; }
 
   const content = quill
     ? quill.root.innerHTML
     : (document.getElementById('note-quill-editor')?.innerHTML || '');
 
-  setLoadingState(btn, true, editingNoteId ? 'Updating…' : 'Saving…');
+  window.setLoadingState(btn, true, editingNoteId ? 'Updating…' : 'Saving…');
 
   try {
     if (editingNoteId) {
       const updated = await updateNote(editingNoteId, title, content);
       const idx = allNotes.findIndex(n => n.id === editingNoteId);
       if (idx !== -1) allNotes[idx] = updated;
-      showToast('Note updated!', 'success');
+      window.showToast('Note updated!', 'success');
     } else {
       const created = await createNote(title, content);
       allNotes.unshift(created);
       await logActivity('note', { action: 'create', title });
-      showToast('Note created!', 'success');
+      window.showToast('Note created!', 'success');
     }
     renderNotes(allNotes);
     closeNoteModal();
   } catch (err) {
-    showToast('Error saving note: ' + err.message, 'error');
+    window.showToast('Error saving note: ' + err.message, 'error');
   } finally {
-    setLoadingState(btn, false);
+    window.setLoadingState(btn, false);
   }
 }
 
@@ -308,32 +279,28 @@ async function confirmDeleteNote(id) {
     await deleteNote(id);
     allNotes = allNotes.filter(n => n.id !== id);
     renderNotes(allNotes);
-    showToast('Note deleted.', 'info');
+    window.showToast('Note deleted.', 'info');
   } catch (err) {
-    showToast('Delete failed: ' + err.message, 'error');
+    window.showToast('Delete failed: ' + err.message, 'error');
   }
 }
-
-// ─── Search & Sort ────────────────────────────────────────────────────────────
 
 function setupSearch() {
   const bar = document.getElementById('notes-search');
   if (!bar) return;
 
-  const doSearch = debounce(async (query) => {
+  const doSearch = window.debounce(async (query) => {
     if (!query.trim()) { renderNotes(allNotes); return; }
 
-    // Try AI search first
     const aiBtn = document.getElementById('ai-search-btn');
     if (aiBtn?.dataset.aiMode === 'on') {
       try {
-        const indices = await generateAINoteSearch(query, allNotes);
+        const indices = await window.generateAINoteSearch(query, allNotes);
         renderNotes(indices.length ? allNotes.filter((_, i) => indices.includes(i)) : []);
         return;
       } catch { /* fall through to text search */ }
     }
 
-    // Fuzzy text search
     const q = query.toLowerCase();
     const filtered = allNotes.filter(n =>
       n.title.toLowerCase().includes(q) ||
@@ -351,19 +318,20 @@ function setupSort() {
   sel.addEventListener('change', loadNotes);
 }
 
-/**
- * saveAsNote – called from YouTube/Research modules.
- * @param {string} title
- * @param {string} content  HTML string
- */
-export async function saveAsNote(title, content) {
+async function saveAsNote(title, content) {
   try {
-    const created = await createNote(sanitizeInput(title), content);
+    const created = await createNote(window.sanitizeInput(title), content);
     allNotes.unshift(created);
     renderNotes(allNotes);
     await logActivity('note', { action: 'save_from_summary', title });
-    showToast('Saved as note!', 'success');
+    window.showToast('Saved as note!', 'success');
   } catch (err) {
-    showToast('Could not save: ' + err.message, 'error');
+    window.showToast('Could not save: ' + err.message, 'error');
   }
 }
+
+// Attach to window for global access
+window.initNotes      = initNotes;
+window.loadNotes      = loadNotes;
+window.openNoteModal  = openNoteModal;
+window.saveAsNote     = saveAsNote;

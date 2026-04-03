@@ -7,12 +7,6 @@
  *  - Delete / Disable user actions
  */
 
-import { requireAdmin, signOut } from './auth.js';
-import { supabaseClient } from '../services/supabaseClient.js';
-import {
-  showToast, sanitizeHTML, formatDate,
-  timeAgo, showSkeleton, setLoadingState,
-} from '../utils/helpers.js';
 
 // Local applyTheme — avoids circular import with dashboard.js
 function applyTheme(theme) {
@@ -24,7 +18,7 @@ function applyTheme(theme) {
 (async () => {
   showLoader();
   try {
-    const { profile } = await requireAdmin();
+    const { profile } = await window.requireAdmin();
     populateAdminUI(profile);
     setupTheme();
     setupSignOut();
@@ -35,22 +29,16 @@ function applyTheme(theme) {
   }
 })();
 
-// ─── Loader ───────────────────────────────────────────────────────────────────
-
 function showLoader() { document.getElementById('page-loader')?.classList.remove('hidden'); }
 function hideLoader()  {
   const el = document.getElementById('page-loader');
   if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }
 }
 
-// ─── Populate ─────────────────────────────────────────────────────────────────
-
 function populateAdminUI(profile) {
-  document.querySelectorAll('[data-user-name]').forEach(el => el.textContent = sanitizeHTML(profile.name || 'Admin'));
+  document.querySelectorAll('[data-user-name]').forEach(el => el.textContent = window.sanitizeHTML(profile.name || 'Admin'));
   document.querySelectorAll('[data-user-role]').forEach(el => { el.textContent = 'Admin'; });
 }
-
-// ─── Site Stats ───────────────────────────────────────────────────────────────
 
 async function loadSiteStats() {
   const [
@@ -59,10 +47,10 @@ async function loadSiteStats() {
     { count: ytCount      },
     { count: researchCount },
   ] = await Promise.all([
-    supabaseClient.from('profiles').select('*', { count: 'exact', head: true }),
-    supabaseClient.from('notes').select('*', { count: 'exact', head: true }),
-    supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('type','summarize'),
-    supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('type','research'),
+    window.supabaseClient.from('profiles').select('*', { count: 'exact', head: true }),
+    window.supabaseClient.from('notes').select('*', { count: 'exact', head: true }),
+    window.supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('type','summarize'),
+    window.supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('type','research'),
   ]);
 
   animateCount('admin-stat-users',    usersCount    || 0);
@@ -83,16 +71,13 @@ function animateCount(id, target) {
   }, 30);
 }
 
-// ─── Users Table ─────────────────────────────────────────────────────────────
-
 async function loadUsersTable() {
   const wrap = document.getElementById('users-table-wrap');
   if (!wrap) return;
 
   wrap.innerHTML = '<div style="padding:32px;text-align:center"><div class="loader-ring" style="margin:auto"></div></div>';
 
-  // Fetch profiles
-  const { data: profiles, error } = await supabaseClient
+  const { data: profiles, error } = await window.supabaseClient
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: false });
@@ -102,12 +87,11 @@ async function loadUsersTable() {
     return;
   }
 
-  // Fetch per-user note counts in parallel
   const noteCountsPromises = profiles.map(p =>
-    supabaseClient.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', p.id)
+    window.supabaseClient.from('notes').select('*', { count: 'exact', head: true }).eq('user_id', p.id)
   );
   const activityPromises = profiles.map(p =>
-    supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('user_id', p.id)
+    window.supabaseClient.from('activity').select('*', { count: 'exact', head: true }).eq('user_id', p.id)
   );
 
   const noteCounts    = await Promise.all(noteCountsPromises);
@@ -134,7 +118,6 @@ async function loadUsersTable() {
     </div>
   `;
 
-  // Bind action buttons
   wrap.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', () => handleUserAction(btn.dataset.action, btn.dataset.uid, btn.dataset.email));
   });
@@ -149,13 +132,13 @@ function renderUserRow(profile, noteCount, activityCount) {
       <td>
         <div class="flex items-center gap-2">
           <div class="user-avatar" style="width:32px;height:32px;font-size:12px">${initials}</div>
-          <span style="font-weight:600;color:var(--text-primary)">${sanitizeHTML(profile.name || '—')}</span>
+          <span style="font-weight:600;color:var(--text-primary)">${window.sanitizeHTML(profile.name || '—')}</span>
         </div>
       </td>
-      <td>${sanitizeHTML(profile.email || '—')}</td>
+      <td>${window.sanitizeHTML(profile.email || '—')}</td>
       <td>
         <span class="badge ${profile.role === 'admin' ? 'badge-admin' : 'badge-user'}">
-          ${sanitizeHTML(profile.role || 'user')}
+          ${window.sanitizeHTML(profile.role || 'user')}
         </span>
       </td>
       <td>${noteCount}</td>
@@ -170,13 +153,13 @@ function renderUserRow(profile, noteCount, activityCount) {
           <button class="btn btn-secondary btn-sm"
             data-action="${isDisabled ? 'enable' : 'disable'}"
             data-uid="${profile.id}"
-            data-email="${sanitizeHTML(profile.email || '')}">
+            data-email="${window.sanitizeHTML(profile.email || '')}">
             ${isDisabled ? '✅ Enable' : '🚫 Disable'}
           </button>
           <button class="btn btn-danger btn-sm"
             data-action="delete"
             data-uid="${profile.id}"
-            data-email="${sanitizeHTML(profile.email || '')}">
+            data-email="${window.sanitizeHTML(profile.email || '')}">
             🗑️ Delete
           </button>
         </div>
@@ -184,8 +167,6 @@ function renderUserRow(profile, noteCount, activityCount) {
     </tr>
   `;
 }
-
-// ─── User Actions ─────────────────────────────────────────────────────────────
 
 async function handleUserAction(action, uid, email) {
   if (action === 'delete') {
@@ -200,39 +181,35 @@ async function handleUserAction(action, uid, email) {
 }
 
 async function deleteUser(uid, email) {
-  // Delete profile + all their data
-  const { error: noteErr } = await supabaseClient.from('notes').delete().eq('user_id', uid);
-  const { error: actErr  } = await supabaseClient.from('activity').delete().eq('user_id', uid);
-  const { error: profErr } = await supabaseClient.from('profiles').delete().eq('id', uid);
+  const { error: noteErr } = await window.supabaseClient.from('notes').delete().eq('user_id', uid);
+  const { error: actErr  } = await window.supabaseClient.from('activity').delete().eq('user_id', uid);
+  const { error: profErr } = await window.supabaseClient.from('profiles').delete().eq('id', uid);
 
   if (profErr) {
-    showToast('Delete failed: ' + profErr.message, 'error');
+    window.showToast('Delete failed: ' + profErr.message, 'error');
     return;
   }
 
   document.getElementById(`user-row-${uid}`)?.remove();
-  showToast(`User ${email} deleted.`, 'success');
+  window.showToast(`User ${email} deleted.`, 'success');
 
-  // Refresh stats
   await loadSiteStats();
 }
 
 async function setUserDisabled(uid, disabled) {
-  const { error } = await supabaseClient
+  const { error } = await window.supabaseClient
     .from('profiles')
     .update({ disabled })
     .eq('id', uid);
 
   if (error) {
-    showToast('Action failed: ' + error.message, 'error');
+    window.showToast('Action failed: ' + error.message, 'error');
     return;
   }
 
-  showToast(`User ${disabled ? 'disabled' : 'enabled'}.`, 'success');
-  await loadUsersTable(); // Re-render
+  window.showToast(`User ${disabled ? 'disabled' : 'enabled'}.`, 'success');
+  await loadUsersTable();
 }
-
-// ─── Theme & Sign Out ─────────────────────────────────────────────────────────
 
 function setupTheme() {
   const saved = localStorage.getItem('pos_theme') || 'dark';
@@ -247,6 +224,6 @@ function setupTheme() {
 
 function setupSignOut() {
   document.getElementById('signout-btn')?.addEventListener('click', async () => {
-    if (confirm('Sign out?')) await signOut();
+    if (confirm('Sign out?')) await window.signOut();
   });
 }

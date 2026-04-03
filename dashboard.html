@@ -6,8 +6,6 @@
   <meta name="description" content="Personal OS Dashboard – Manage notes, YouTube summaries, and AI research.">
   <title>Dashboard – Personal OS</title>
 
-  <!-- Env config FIRST -->
-  <script src="env-config.js"></script>
 
   <!-- Styles -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,6 +17,18 @@
 
   <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  
+  <!-- Core Utilities & Services -->
+  <script src="utils/helpers.js"></script>
+  <script src="services/supabaseClient.js"></script>
+  <script src="services/api.js"></script>
+  
+  <!-- Feature Modules -->
+  <script src="js/auth.js"></script>
+  <script src="js/notes.js"></script>
+  <script src="js/youtube.js"></script>
+  <script src="js/research.js"></script>
+  <script src="js/dashboard.js"></script>
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
 </head>
@@ -333,8 +343,6 @@
 </div><!-- /app-shell -->
 
 <!-- ─── Scripts ───────────────────────────────────────────────────────────── -->
-<script type="module" src="js/dashboard.js"></script>
-
 <!-- AI-search toggle wiring (small inline) -->
 <script>
   document.getElementById('ai-search-btn')?.addEventListener('click', function() {
@@ -345,7 +353,7 @@
   });
 
   document.getElementById('create-note-btn')?.addEventListener('click', () => {
-    import('./js/notes.js').then(m => m.openNoteModal());
+    if (window.openNoteModal) window.openNoteModal();
   });
 </script>
 
