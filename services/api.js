@@ -10,31 +10,65 @@
  */
 
 
-const GEMINI_API_KEY = "AIzaSyB9vtH-VrzPM5TN1hDiHrSoesY5RA8cEyM";
-const YOUTUBE_API_KEY = "AIzaSyASOrmX6jHYj_sMScGWIOByZFxf24JNgn4";
+const GEMINI_API_KEY = window.ENV?.GEMINI_API_KEY;
+const YOUTUBE_API_KEY = window.ENV?.YOUTUBE_API_KEY;
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-// ─── Helper: call Gemini ─────────────────────────────────────────────────────
+// ─── Helper: call Gemini with Super-Fallbacks ─────────────────────────────────
 async function callGemini(prompt) {
-  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured in your environment.');
+  // Pull keys fresh in case of late loading
+  const key = window.ENV?.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY not found in window.ENV. Check env-config.js');
 
-  const res = await fetch(`${GEMINI_BASE}?key=${GEMINI_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-    }),
-  });
+  const models = [
+    'gemini-3-flash-preview',
+    'gemini-3.1-pro-preview',
+    'gemini-3.1-flash-lite-preview',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-pro',
+    'gemini-flash'
+  ];
+  
+  const endpoints = ['v1', 'v1beta'];
+  let lastError = null;
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    console.error('[Gemini API Error Output]:', err);
-    throw new Error(`Gemini AI Error (${res.status}): ${err?.error?.message || 'Check your API key or usage limits.'}`);
+  for (const modelId of models) {
+    for (const apiVer of endpoints) {
+      try {
+        const baseUrl = `https://generativelanguage.googleapis.com/${apiVer}/models/${modelId}:generateContent`;
+        const res = await fetch(`${baseUrl}?key=${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log(`[Gemini API success: ${apiVer}/${modelId}]`);
+          return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        }
+
+        const err = await res.json().catch(() => ({}));
+        lastError = err?.error?.message || `Status ${res.status}`;
+        
+        console.warn(`[Gemini API]: ${apiVer}/${modelId} failed (${res.status}): ${lastError}`);
+        
+        // If it's 404/503/429, continue hunting. Other errors (Auth) are fatal.
+        if ([404, 503, 429].includes(res.status)) continue;
+        
+        throw new Error(`Gemini AI Error (${res.status}): ${lastError}`);
+
+      } catch (err) {
+        if (err.message.includes('AI Error')) throw err;
+        console.warn(`[Gemini API]: Connection error with ${modelId} (${apiVer})`);
+      }
+    }
   }
 
-  const data = await res.json();
-  console.log('[Gemini API Full Response]:', data);
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  throw new Error(`Gemini AI Error: All models/endpoints are unavailable. Last error: ${lastError}`);
 }
 
 // ─── YouTube helpers ──────────────────────────────────────────────────────────
@@ -57,38 +91,42 @@ function extractVideoId(url) {
  * @param {string} videoId
  */
 async function fetchYouTubeMetadata(videoId) {
-  if (!YOUTUBE_API_KEY) {
-    throw new Error('YouTube API Key is missing. Please ensure it is set in your environment configuration.');
-  }
-
-  const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet&key=${YOUTUBE_API_KEY}`;
-
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    console.error('[YouTube API Error Output]:', errorData);
-
-    if (res.status === 400 || res.status === 403) {
-      throw new Error(`YouTube API Invalid Request (${res.status}): ${errorData?.error?.message || 'Check your API key and permissions.'}`);
-    } else if (res.status >= 500) {
-      throw new Error(`YouTube API Server Error (${res.status}): Please try again later.`);
-    } else {
-      throw new Error(`YouTube API error ${res.status}: ${errorData?.error?.message || 'Unknown error'}`);
-    }
-  }
-
-  const data = await res.json();
-  console.log('[YouTube API Full Response]:', data);
-
-  const item = data.items?.[0]?.snippet;
-  if (!item) throw new Error(`Video not found for ID: ${videoId}`);
-
-  return {
-    title: item.title,
-    description: item.description,
-    thumbnail: item.thumbnails?.high?.url || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+  // Fallback metadata in case API fails
+  const mockMeta = {
+    title: 'YouTube Video',
+    description: 'Manual summary requested. Metadata retrieval skipped due to API key issues.',
+    thumbnail: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+    isMock: true
   };
+
+  if (!YOUTUBE_API_KEY) {
+    console.warn('[YouTube API]: No key found, using mock fallback.');
+    return mockMeta;
+  }
+
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet&key=${YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.warn(`[YouTube API]: Error ${res.status}, falling back to mock.`);
+      return mockMeta;
+    }
+
+    const data = await res.json();
+    const item = data.items?.[0]?.snippet;
+    if (!item) return mockMeta;
+
+    return {
+      title: item.title,
+      description: item.description,
+      thumbnail: item.thumbnails?.high?.url || mockMeta.thumbnail,
+      isMock: false
+    };
+  } catch (err) {
+    console.error('[YouTube API]: Fetch error, using mock.', err);
+    return mockMeta;
+  }
 }
 
 /**

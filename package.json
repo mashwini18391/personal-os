@@ -4,6 +4,8 @@
   "description": "A **production-ready, full-stack web app** built with pure HTML + CSS + Vanilla JavaScript. Features notes, YouTube AI summarizer, AI research, and an admin dashboard — all powered by **Supabase** (auth + DB) and **Google Gemini** (AI).",
   "main": "env-config.js",
   "scripts": {
+    "dev": "npx http-server . -p 5500 -a 127.0.0.1 -c-1 -o",
+    "start": "npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
